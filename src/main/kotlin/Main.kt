@@ -5,11 +5,15 @@ import kotlin.random.Random // import the kotlin random fun to use random.nextIn
 
 val scanner = Scanner(System.`in`)
 // objects that can be on the field stored in an array
-val characters = charArrayOf('.', '1', '2', '3', '4', '5', '6', '7', '8', '*')
+val characters = charArrayOf('.', '1', '2', '3', '4', '5', '6', '7', '8', '*', '/')
 const val height = 9
 const val width = 9
-val gameField = Array(height) { CharArray(width) { '.' } } // creates a starting field
-val coords = IntArray(3)
+val gameField = Array(height) { CharArray(width) { characters[10] } } // creates a starting field
+val displayField = Array(height) { CharArray(width) { characters[0] } } // hide mines for display of field
+val coords = IntArray(4)
+var counter = 0
+var stepOnMine = false
+class Free(var x: Int, var y: Int)
 // game class holds the dif methods/fun to run the game as companion objects
 class Game {
     companion object {
@@ -192,30 +196,16 @@ class Game {
             return field
         }
 
-        fun displayedField(): Array<CharArray> {
-            val displayField = Array(height) { CharArray(width) }
-            for (x in 0 until height) {
-                for (y in 0 until width) {
-                    if (gameField[x][y] == characters[9]) {
-                        displayField[x][y] = characters[0]
-                    } else {
-                        displayField[x][y] = gameField[x][y]
-                    }
-                }
-            }
-            return displayField
-        }
-
         fun flagPlacement(x: Int, y: Int, field: Array<CharArray>): Char {
             // should work if x y are already tested and valid
-            return if (field[x] [y] == characters[0]) {
+            return if (field[x][y] == characters[0]) {
                 characters[9]
             } else {
                 characters[0]
             }
         }
 
-        fun display(displayField: Array<CharArray>) {
+        fun display() {
             println(" |123456789|")
             println("-|---------|")
             for (i in 0 until height) {
@@ -227,25 +217,38 @@ class Game {
             println("-|---------|")
         }
 
-        fun test(field: Array<CharArray>): Int {
-            val test = IntArray(height)
-            var trueCount = 0
-            for (i in 0 until height) {
-                if (gameField[i].contentEquals(field[i])) {
-                    test[i] = 1
-                } else test[i] = 0
-                trueCount += test[i]
+        fun test(numOfMines: Int): Boolean {
+            var cellCount = 0
+            var mineCount = 0
+            for (x in 0 until height) {
+                for (y in 0 until width) {
+                    if (displayField[x][y] == characters[9]) {
+                        if (gameField[x][y] == characters[9]) {
+                            mineCount++
+                        } else mineCount--
+                    } else {
+                        if (displayField[x][y] == gameField[x][y]) {
+                            cellCount++
+                        }
+                    }
+                }
             }
-            return trueCount
+            return if (mineCount == numOfMines) {
+                true
+            } else {
+                cellCount == height * width - numOfMines
+            }
+
         }
 
         fun getCoords() {
             // test the coordinates and get new ones if necessary
-            print("Set/delete mines marks (x and y coordinates): ")
+            print("Set/unset mines marks or claim a cell as free: ")
             val y = scanner.nextInt()
             val x = scanner.nextInt()
+            val cell = scanner.next()
             if (x <= height && y <= width) {
-                if (gameField[x - 1][y - 1] == characters[0] || gameField[x - 1][y - 1] == characters[9]) {
+                if (displayField[x - 1][y - 1] == characters[0] || displayField[x - 1][y - 1] == characters[9]) {
                     coords[0] = x
                     coords[1] = y
                     coords[2] = 1 //true
@@ -255,11 +258,356 @@ class Game {
             } else {
                 coords[2] = 0 // false
             }
-
+            when (cell) {
+                "mine" -> coords[3] = 0
+                "free" -> coords[3] = 1
+                else -> coords[3] = 2
+            }
         }
 
+        fun free(coords: Free, list: Array<Free>): Array<Free> {
+            val x = coords.x
+            val y = coords.y
+            var freeList = list
+            var new: Free
+            if (gameField[x][y] != characters[9]) {
+                if (gameField[x][y] == characters[10]) {
+                    displayField[x][y] = gameField[x][y]
+                    if (x == 0) {
+                        when (y) {
+                            0 -> { // top left corner
+                                if (gameField[x][y + 1] == characters[10]) {
+                                    new = Free(x, y + 1)
+                                    if (!this.listCheck(new, freeList)) {
+                                        freeList += new
+                                        displayField[x][y + 1] = characters[10]
+                                    }
+                                } else displayField[x][y + 1] = gameField[x][y + 1]
+                                if (gameField[x + 1][y] == characters[10]) {
+                                    new = Free(x + 1, y)
+                                    if (!this.listCheck(new, freeList)) {
+                                        freeList += new
+                                        displayField[x + 1][y] = characters[10]
+                                    }
+                                } else displayField[x + 1][y] = gameField[x + 1][y]
+                                if (gameField[x + 1][y + 1] == characters[10]) {
+                                    new = Free(x + 1, y + 1)
+                                    if (!this.listCheck(new, freeList)) {
+                                        freeList += new
+                                        displayField[x + 1][y + 1] = characters[10]
+                                    }
+                                } else displayField[x + 1][y + 1] = gameField[x + 1][y + 1]
+                            }
+                            8 -> { // top right corner
+                                if (gameField[x][y - 1] == characters[10]) {
+                                    new = Free(x, y - 1)
+                                    if (!this.listCheck(new, freeList)) {
+                                        freeList += new
+                                        displayField[x][y - 1] = characters[10]
+                                    }
+                                } else displayField[x][y - 1] = gameField[x][y - 1]
+                                if (gameField[x + 1][y] == characters[10]) {
+                                    new = Free(x + 1, y)
+                                    if (!this.listCheck(new, freeList)) {
+                                        freeList += new
+                                        displayField[x + 1][y] = characters[10]
+                                    }
+                                } else displayField[x + 1][y] = gameField[x + 1][y]
+                                if (gameField[x + 1][y - 1] == characters[10]) {
+                                    new = Free(x + 1, y - 1)
+                                    if (!this.listCheck(new, freeList)) {
+                                        freeList += new
+                                        displayField[x + 1][y - 1] = characters[10]
+                                    }
+                                } else displayField[x + 1][y - 1] = gameField[x + 1][y - 1]
+                            }
+                            else -> { // top edge not corners
+                                if (gameField[x][y - 1] == characters[10]) {
+                                    new = Free(x, y - 1)
+                                    if (!this.listCheck(new, freeList)) {
+                                        freeList += new
+                                        displayField[x][y - 1] = characters[10]
+                                    }
+                                } else displayField[x][y - 1] = gameField[x][y - 1]
+                                if (gameField[x][y + 1] == characters[10]) {
+                                    new = Free(x, y + 1)
+                                    if (!this.listCheck(new, freeList)) {
+                                        freeList += new
+                                        displayField[x][y + 1] = characters[10]
+                                    }
+                                } else displayField[x][y + 1] = gameField[x][y + 1]
+                                if (gameField[x + 1][y - 1] == characters[10]) {
+                                    new = Free(x + 1, y - 1)
+                                    if (!this.listCheck(new, freeList)) {
+                                        freeList += new
+                                        displayField[x + 1][y - 1] = characters[10]
+                                    }
+                                } else displayField[x + 1][y - 1] = gameField[x + 1][y - 1]
+                                if (gameField[x + 1][y] == characters[10]) {
+                                    new = Free(x + 1, y)
+                                    if (!this.listCheck(new, freeList)) {
+                                        freeList += new
+                                        displayField[x + 1][y] = characters[10]
+                                    }
+                                } else displayField[x + 1][y] = gameField[x + 1][y]
+                                if (gameField[x + 1][y + 1] == characters[10]) {
+                                    new = Free(x + 1, y + 1)
+                                    if (!this.listCheck(new, freeList)) {
+                                        freeList += new
+                                        displayField[x + 1][y + 1] = characters[10]
+                                    }
+                                } else displayField[x + 1][y + 1] = gameField[x + 1][y + 1]
+                            }
+                        }
+                    } else if (x == height - 1) {
+                        when (y) {
+                            0 -> { // bottom left corner
+                                if (gameField[x][y + 1] == characters[10]) {
+                                    new = Free(x, y + 1)
+                                    if (!this.listCheck(new, freeList)) {
+                                        freeList += new
+                                        displayField[x][y + 1] = characters[10]
+                                    }
+                                } else displayField[x][y + 1] = gameField[x][y + 1]
+                                if (gameField[x - 1][y] == characters[10]) {
+                                    new = Free(x - 1, y)
+                                    if (!this.listCheck(new, freeList)) {
+                                        freeList += new
+                                        displayField[x - 1][y] = characters[10]
+                                    }
+                                } else displayField[x - 1][y] = gameField[x - 1][y]
+                                if (gameField[x - 1][y + 1] == characters[10]) {
+                                    new = Free(x - 1, y + 1)
+                                    if (!this.listCheck(new, freeList)) {
+                                        freeList += new
+                                        displayField[x - 1][y + 1] = characters[10]
+                                    }
+                                } else displayField[x - 1][y + 1] = gameField[x - 1][y + 1]
+                            }
+                            8 -> { // bottom right corner
+                                if (gameField[x][y - 1] == characters[10]) {
+                                    new = Free(x, y - 1)
+                                    if (!this.listCheck(new, freeList)) {
+                                        freeList += new
+                                        displayField[x][y - 1] = characters[10]
+                                    }
+                                } else displayField[x][y - 1] = gameField[x][y - 1]
+                                if (gameField[x - 1][y] == characters[10]) {
+                                    new = Free(x - 1, y)
+                                    if (!this.listCheck(new, freeList)) {
+                                        freeList += new
+                                        displayField[x - 1][y] = characters[10]
+                                    }
+                                } else displayField[x - 1][y] = gameField[x - 1][y]
+                                if (gameField[x - 1][y - 1] == characters[10]) {
+                                    new = Free(x - 1, y - 1)
+                                    if (!this.listCheck(new, freeList)) {
+                                        freeList += new
+                                        displayField[x - 1][y - 1] = characters[10]
+                                    }
+                                } else displayField[x - 1][y - 1] = gameField[x - 1][y - 1]
+                            }
+                            else -> { // bottom edge not corners
+                                if (gameField[x][y - 1] == characters[10]) {
+                                    new = Free(x, y - 1)
+                                    if (!this.listCheck(new, freeList)) {
+                                        freeList += new
+                                        displayField[x][y - 1] = characters[10]
+                                    }
+                                } else displayField[x][y - 1] = gameField[x][y - 1]
+                                if (gameField[x][y + 1] == characters[10]) {
+                                    new = Free(x, y + 1)
+                                    if (!this.listCheck(new, freeList)) {
+                                        freeList += new
+                                        displayField[x][y + 1] = characters[10]
+                                    }
+                                } else displayField[x][y + 1] = gameField[x][y + 1]
+                                if (gameField[x - 1][y - 1] == characters[10]) {
+                                    new = Free(x - 1, y - 1)
+                                    if (!this.listCheck(new, freeList)) {
+                                        freeList += new
+                                        displayField[x - 1][y - 1] = characters[10]
+                                    }
+                                } else displayField[x - 1][y - 1] = gameField[x - 1][y - 1]
+                                if (gameField[x - 1][y] == characters[10]) {
+                                    new = Free(x - 1, y)
+                                    if (!this.listCheck(new, freeList)) {
+                                        freeList += new
+                                        displayField[x - 1][y] = characters[10]
+                                    }
+                                } else displayField[x - 1][y] = gameField[x - 1][y]
+                                if (gameField[x - 1][y + 1] == characters[10]) {
+                                    new = Free(x - 1, y + 1)
+                                    if (!this.listCheck(new, freeList)) {
+                                        freeList += new
+                                        displayField[x - 1][y + 1] = characters[10]
+                                    }
+                                } else displayField[x - 1][y + 1] = gameField[x - 1][y + 1]
+                            }
+                        }
+                    } else {
+                        if (x in 1..7) {
+                            when (y) {
+                                0 -> { // left edge not corners
+                                    if (gameField[x - 1][y] == characters[10]) {
+                                        new = Free(x - 1, y)
+                                        if (!this.listCheck(new, freeList)) {
+                                            freeList += new
+                                            displayField[x - 1][y] = characters[10]
+                                        }
+                                    } else displayField[x - 1][y] = gameField[x - 1][y]
+                                    if (gameField[x - 1][y + 1] == characters[10]) {
+                                        new = Free(x - 1, y + 1)
+                                        if (!this.listCheck(new, freeList)) {
+                                            freeList += new
+                                            displayField[x - 1][y + 1] = characters[10]
+                                        }
+                                    } else displayField[x - 1][y + 1] = gameField[x - 1][y + 1]
+                                    if (gameField[x][y + 1] == characters[10]) {
+                                        new = Free(x, y + 1)
+                                        if (!this.listCheck(new, freeList)) {
+                                            freeList += new
+                                            displayField[x][y + 1] = characters[10]
+                                        }
+                                    } else displayField[x][y + 1] = gameField[x][y + 1]
+                                    if (gameField[x + 1][y] == characters[10]) {
+                                        new = Free(x + 1, y)
+                                        if (!this.listCheck(new, freeList)) {
+                                            freeList += new
+                                            displayField[x + 1][y] = characters[10]
+                                        }
+                                    } else displayField[x + 1][y] = gameField[x + 1][y]
+                                    if (gameField[x + 1][y + 1] == characters[10]) {
+                                        new = Free(x + 1, y + 1)
+                                        if (!this.listCheck(new, freeList)) {
+                                            freeList += new
+                                            displayField[x + 1][y + 1] = characters[10]
+                                        }
+                                    } else displayField[x + 1][y + 1] = gameField[x + 1][y + 1]
+                                }
+                                8 -> { // right edge not corners
+                                    if (gameField[x - 1][y - 1] == characters[10]) {
+                                        new = Free(x - 1, y - 1)
+                                        if (!this.listCheck(new, freeList)) {
+                                            freeList += new
+                                            displayField[x - 1][y - 1] = characters[10]
+                                        }
+                                    } else displayField[x - 1][y - 1] = gameField[x - 1][y - 1]
+                                    if (gameField[x - 1][y] == characters[10]) {
+                                        new = Free(x - 1, y)
+                                        if (!this.listCheck(new, freeList)) {
+                                            freeList += new
+                                            displayField[x - 1][y] = characters[10]
+                                        }
+                                    } else displayField[x - 1][y] = gameField[x - 1][y]
+                                    if (gameField[x][y - 1] == characters[10]) {
+                                        new = Free(x, y - 1)
+                                        if (!this.listCheck(new, freeList)) {
+                                            freeList += new
+                                            displayField[x][y - 1] = characters[10]
+                                        }
+                                    } else displayField[x][y - 1] = gameField[x][y - 1]
+                                    if (gameField[x + 1][y - 1] == characters[10]) {
+                                        new = Free(x + 1, y - 1)
+                                        if (!this.listCheck(new, freeList)) {
+                                            freeList += new
+                                            displayField[x + 1][y - 1] = characters[10]
+                                        }
+                                    } else displayField[x + 1][y - 1] = gameField[x + 1][y - 1]
+                                    if (gameField[x + 1][y] == characters[10]) {
+                                        new = Free(x + 1, y)
+                                        if (!this.listCheck(new, freeList)) {
+                                            freeList += new
+                                            displayField[x + 1][y] = characters[10]
+                                        }
+                                    } else displayField[x + 1][y] = gameField[x + 1][y]
+                                }
+                                else -> { // all interior
+                                    if (gameField[x - 1][y - 1] == characters[10]) {
+                                        new = Free(x - 1, y - 1)
+                                        if (!this.listCheck(new, freeList)) {
+                                            freeList += new
+                                            displayField[x - 1][y - 1] = characters[10]
+                                        }
+                                    } else displayField[x - 1][y - 1] = gameField[x - 1][y - 1]
+                                    if (gameField[x - 1][y] == characters[10]) {
+                                        new = Free(x - 1, y)
+                                        if (!this.listCheck(new, freeList)) {
+                                            freeList += new
+                                            displayField[x - 1][y] = characters[10]
+                                        }
+                                    } else displayField[x - 1][y] = gameField[x - 1][y]
+                                    if (gameField[x - 1][y + 1] == characters[10]) {
+                                        new = Free(x - 1, y + 1)
+                                        if (!this.listCheck(new, freeList)) {
+                                            freeList += new
+                                            displayField[x - 1][y + 1] = characters[10]
+                                        }
+                                    } else displayField[x - 1][y + 1] = gameField[x - 1][y + 1]
+                                    if (gameField[x][y - 1] == characters[10]) {
+                                        new = Free(x, y - 1)
+                                        if (!this.listCheck(new, freeList)) {
+                                            freeList += new
+                                            displayField[x][y - 1] = characters[10]
+                                        }
+                                    } else displayField[x][y - 1] = gameField[x][y - 1]
+                                    if (gameField[x][y + 1] == characters[10]) {
+                                        new = Free(x, y + 1)
+                                        if (!this.listCheck(new, freeList)) {
+                                            freeList += new
+                                            displayField[x][y + 1] = characters[10]
+                                        }
+                                    } else displayField[x][y + 1] = gameField[x][y + 1]
+                                    if (gameField[x + 1][y - 1] == characters[10]) {
+                                        new = Free(x + 1, y - 1)
+                                        if (!this.listCheck(new, freeList)) {
+                                            freeList += new
+                                            displayField[x + 1][y - 1] = characters[10]
+                                        }
+                                    } else displayField[x + 1][y - 1] = gameField[x + 1][y - 1]
+                                    if (gameField[x + 1][y] == characters[10]) {
+                                        new = Free(x + 1, y)
+                                        if (!this.listCheck(new, freeList)) {
+                                            freeList += new
+                                            displayField[x + 1][y] = characters[10]
+                                        }
+                                    } else displayField[x + 1][y] = gameField[x + 1][y]
+                                    if (gameField[x + 1][y + 1] == characters[10]) {
+                                        new = Free(x + 1, y + 1)
+                                        if (!this.listCheck(new, freeList)) {
+                                            freeList += new
+                                            displayField[x + 1][y + 1] = characters[10]
+                                        }
+                                    } else displayField[x + 1][y + 1] = gameField[x + 1][y + 1]
+                                }
+                            }
+                        }
+                    }
+                } else displayField[x][y] = gameField[x][y]
+            } else stepOnMine = true
+            counter += freeList.size - list.size
+            return freeList
+        }
+        private fun listCheck(coords: Free, list: Array<Free>): Boolean {
+            var freeList = list
+            var count = 0
+            for (element in list) {
+                if (coords.x == element.x && coords.y == element.y) {
+                    count++
+                }
+            }
+            if (count == 0) {
+                freeList += coords
+            }
+            return freeList.contentEquals(list)
+        }
     }
 }
+
+
+
+
+
 
 fun main() {
 
@@ -271,21 +619,49 @@ fun main() {
     Game.placeMines(numberOfMines, gameField)
     // add number hints to the field
     Game.addHints(gameField)
-    // hide mines for display of field
-    val displayField = Game.displayedField()
+
+    // todo make game play instructions more clear
     // game loop
-    var count = 0 // a counter to use as a test to brake loop if all tests are true count will = hight
-    while (count != height) {
-        Game.display(displayField) // displays the current displayField w/ mines hidden
+    loop@ while (!Game.test(numberOfMines)) { // tests displayField vs gameField
+        Game.display() // displays the current displayField w/ mines hidden
         coords[2] = 0
         while (coords[2] != 1) {
             Game.getCoords() // get coordinates from player
         }
-
-        // places or removes flag @ coordinates
-        displayField[coords[0] - 1] [coords[1] - 1] = Game.flagPlacement(coords[0] - 1, coords[1] - 1, displayField)
-        count = Game.test(displayField) // tests displayField vs gameField
+        if (coords[3] != 2) {
+            when (coords[3]) {
+                0 -> { // places or removes flag @ coordinates
+                    displayField[coords[0] - 1][coords[1] - 1] = Game.flagPlacement(coords[0] - 1, coords[1] - 1, displayField)
+                }
+                1 -> { // free cell
+                    val start = Free(coords[0] - 1, coords[1] - 1)
+                    var check = arrayOf(start)
+                    do {
+                        counter = 0
+                        for (element in check) {
+                            check = Game.free(element, check)
+                            if (stepOnMine) break@loop // breaks out of the loop@ while loop
+                        }
+                    } while (counter != 0)
+                }
+            }
+        }
     }
-    Game.display(displayField)
-    println("Congratulations! You found all the mines!") //game over output
+    when (stepOnMine) {
+        false -> {
+            Game.display()
+            println("Congratulations! You found all the mines!") //game over output
+        }
+        else -> {
+            for (x in 0 until height) {
+                for (y in 0 until width) {
+                    if (gameField[x][y] == characters[9]) {
+                        displayField[x][y] = 'X' // displays all mines as 'X'
+                    }
+                }
+            }
+            Game.display()
+            println("You stepped on a mine and failed!")
+        }
+    }
 }
